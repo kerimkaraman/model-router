@@ -6,7 +6,6 @@ import requests
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 REQUEST_TIMEOUT_SECONDS = 120
 
-
 @dataclass
 class ModelResponse:
     answer: str
@@ -47,4 +46,5 @@ def ask_model(model_name: str, prompt: str) -> ModelResponse:
 
 
 if __name__ == "__main__":
-    print(ask_model("llama3.2:3b", "What is the capital of Turkey?"))
+    message_to_send = input("Ask question: ")
+    print(ask_model("llama3.2:3b", message_to_send))
