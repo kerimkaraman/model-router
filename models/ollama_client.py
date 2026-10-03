@@ -47,4 +47,4 @@ def ask_model(model_name: str, prompt: str) -> ModelResponse:
 
 if __name__ == "__main__":
     message_to_send = input("Ask question: ")
-    print(ask_model("llama3.2:3b", message_to_send))
+    print(ask_model("gemma3:4b", message_to_send))
