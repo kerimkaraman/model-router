@@ -4,8 +4,9 @@ from pydantic import BaseModel
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 REQUEST_TIMEOUT_SECONDS = 300
 NANOSECONDS_PER_SECOND = 1_000_000_000
+CONTEXT_WINDOW_TOKENS = 4096
 MAX_OUTPUT_TOKENS = 512
-GENERATION_OPTIONS = {"temperature": 0, "num_predict": MAX_OUTPUT_TOKENS}
+GENERATION_OPTIONS = {"temperature": 0, "num_predict": MAX_OUTPUT_TOKENS, "num_ctx": CONTEXT_WINDOW_TOKENS}
 
 
 class OllamaRequestError(Exception):
