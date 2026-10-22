@@ -1,5 +1,7 @@
 # Model Router
 
+**Model Routing Evaluation on MMLU & GSM8K**
+
 An experiment in choosing the right language model for each question—and measuring whether routing is worth it.
 
 The goal is to compare a router against fixed-model baselines on answer quality, latency and estimated API cost. A useful result might be lower cost at similar quality; finding that a routing strategy does not help is also a valid outcome.
@@ -221,3 +223,27 @@ A gateway, fallback, caching, dashboard and Docker packaging can follow once the
 - [GPT-6 Sol](https://developers.openai.com/api/docs/models/gpt-6-sol)
 - [GPT-6 Astra](https://developers.openai.com/api/docs/models/gpt-6-astra)
 - [Responses API](https://developers.openai.com/api/reference/python/resources/responses/methods/create)
+
+## Oracle cascade simulation
+
+The offline oracle tries Luna first, then Sol if Luna's saved answer is unsuccessful, then Astra if Sol is also unsuccessful. It uses reference-based saved correctness to decide when to escalate: this is a theoretical comparator, not a usable failure detector.
+
+```bash
+python -m eval.oracle_cascade --split dev
+```
+
+No API calls are made. Complete, matching result sets are required. Original model outputs are preserved; Markdown, JSON summaries and per-case JSONL traces are written to `reports/oracle-cascade-dev.*`.
+
+Each attempted call contributes its full estimated token cost and recorded request duration, including unsuccessful lower-tier attempts. All three fixed-model baselines are reported alongside the oracle. Costs use `eval/pricing.json`, an explicit dated Standard short-context model-page snapshot; they are estimates rather than invoice totals. Cached input and reasoning tokens are not double-counted. Long-context pricing, explicit cache writes, tools and regional adjustments are outside this calculation.
+
+Simulated latency sums recorded standalone calls. A live cascade would also incur routing/verification overhead and may have different cache/network conditions. Existing strict-v2 format penalties and benchmark ambiguity remain unchanged. Pricing sources and input file hashes are recorded with the report. `--pricing PATH` selects another compatible pricing snapshot; `--report-dir PATH` selects an output directory. The 80-question evaluation split is not read when running with `--split dev`.
+
+## Format-only cascade replay
+
+```bash
+python -m eval.format_cascade --split dev
+```
+
+This offline policy tries Luna first and escalates only when a response is incomplete or cannot be parsed under the task's answer-format contract. Selection receives answer type, response text and completion status; reference answers and saved correctness do not determine escalation. A well-formed wrong answer is accepted, which is an intentional limitation to measure.
+
+The report compares fixed-model baselines, oracle and format-only cascade using identical saved outputs and pricing. All attempted calls contribute cost and simulated sequential duration. Final correctness is evaluated after selection. Results are written to `reports/format-cascade-dev.md`, `.json` and `.jsonl`; no new API calls occur. This is a replay of a runtime-available policy, not a live cascade executor; API-error fallback and verifier overhead are not implemented.
