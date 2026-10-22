@@ -1,20 +1,25 @@
 # Model Router
 
-Evaluate OpenAI models on identical questions, then build a router balancing quality, latency and API cost.
+An experiment in choosing the right language model for each question—and measuring whether routing is worth it.
 
-## Status and models
+The goal is to compare a router against fixed-model baselines on answer quality, latency and estimated API cost. A useful result might be lower cost at similar quality; finding that a routing strategy does not help is also a valid outcome.
 
-Baseline evaluation is implemented; routing is not implemented yet. Ollama is no longer needed. Historical Gemma results are retained separately.
+**Status:** the evaluation foundation is implemented. The router itself is the next milestone. No routing savings have been demonstrated yet.
 
-- `gpt-6-luna`: efficient baseline.
-- `gpt-6-sol`: middle tier, explicitly GPT-6 Sol (not GPT-6.1 Sol).
-- `gpt-6-astra`: high-capability baseline.
+## What's implemented
 
-All use Responses API, `reasoning.effort=low`, Standard/default service tier, and a 4096-token output budget including reasoning tokens. No temperature is sent. Incomplete outputs are recorded and counted as unsuccessful. Availability depends on your API account.
+- OpenAI Responses API client for **GPT-6 Luna, Sol and Astra**.
+- A 200-question dataset built from MMLU and GSM8K.
+- Frozen, stratified development and evaluation splits.
+- Versioned scoring with separate incorrect, unparseable and incomplete outcomes.
+- Per-question JSONL records and pairwise model comparisons.
+- Offline tests for scoring, dataset splitting and mocked API behavior.
 
-## Setup
+Historical Ollama/Gemma runs remain in the repository as earlier experiments. Running the current project does not require Ollama or a local GPU.
 
-From this repository root:
+## Quick start
+
+Use Python 3.11 or newer. Run these commands from the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -22,90 +27,197 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-A local `.env` is prepared. Add your real key locally:
+For a fresh checkout, create your local configuration:
+
+```bash
+cp .env.example .env
+```
+
+If `.env` already exists, edit it instead of replacing it. Set your key locally:
 
 ```dotenv
 OPENAI_API_KEY=your-key-here
 ```
 
-For a fresh clone, copy `.env.example` to `.env`. `.env` is ignored by Git; environment variables take precedence. Never put real credentials in `.env.example`.
+The application loads `.env` from the repository root. Existing environment variables take precedence. `.env` is ignored by Git; `.env.example` must contain no credentials.
 
-## Run
-
-These commands make paid API calls. Start with three questions per model:
+Verify the setup without paid requests:
 
 ```bash
-python -m eval.split_dataset
+python -m pytest -q
+python -m eval.run_model --help
+```
+
+### First API run
+
+The following evaluation commands make **paid API requests**. Begin with three development questions per model—nine requests in total:
+
+```bash
 python -m eval.run_model --all --split dev --limit 3
-python -m eval.summarize
+python -m eval.summarize --split dev
 ```
 
-Single model:
+To evaluate a single model:
 
 ```bash
-python -m eval.run_model gpt-6-luna --limit 10
+python -m eval.run_model gpt-6-luna --split dev --limit 10
 ```
 
-Full development evaluation: 120 questions x 3 models = 360 requests:
+Results are protected against accidental replacement. If you previously ran the small sample and now want the full development baseline, explicitly replace that split's model result files:
 
 ```bash
 python -m eval.run_model --all --split dev --overwrite
+python -m eval.summarize --split dev
 ```
 
-Existing files are protected unless `--overwrite` is explicit. `--step N` selects every Nth question; `--limit` applies afterward. On request failure the run stops, preserving already written rows. SDK retries are disabled to avoid hidden baseline retries.
+The full development run makes **360 requests: 120 questions × three models**. `--overwrite` replaces existing results; it does not resume them. Copy any experiment you want to retain before replacing it.
 
-Results record input/output/cached/reasoning tokens, request latency, response ID, returned model, completion status, and generation settings. Cached input is part of total input; reasoning tokens are part of output tokens. Do not add them twice. API cost calculation is not implemented yet; usage is retained for later pricing. No paid model evaluation was run during migration.
+## Model configuration
 
-To inspect the old baseline:
+| Role in this experiment | API model ID |
+| --- | --- |
+| Efficient baseline | `gpt-6-luna` |
+| Middle tier | `gpt-6-sol` |
+| High-capability baseline | `gpt-6-astra` |
+
+Sol is explicitly GPT-6 Sol, rather than GPT-6.1 Sol. Roles describe the intended comparison; they do not establish which model performs best on every question.
+
+The client in [`models/openai_client.py`](models/openai_client.py) uses:
+
+- Responses API with `reasoning.effort=low` for all three models.
+- A maximum output budget of 4,096 tokens, including reasoning tokens.
+- Standard/default service tier, without a temperature override.
+- A 120-second SDK timeout and no automatic SDK retries.
+- `store=False`.
+
+Model access and rate limits depend on your OpenAI API account. An API failure stops the current run; rows already written remain available. Automatic resume and per-case request-error records are not implemented.
+
+## Dataset
+
+The source pool is stored in `eval/data/test_set.jsonl`; despite its historical filename, it is the source for both splits.
+
+| Category | Source pool | Development | Evaluation |
+| --- | ---: | ---: | ---: |
+| Elementary mathematics | 25 | 15 | 10 |
+| High-school geography | 25 | 15 | 10 |
+| College physics | 25 | 15 | 10 |
+| Formal logic | 25 | 15 | 10 |
+| Math word problems | 100 | 60 | 40 |
+| **Total** | **200** | **120** | **80** |
+
+The first four categories come from MMLU; math word problems come from GSM8K.
+
+The generated split files are included in the repository. To reproduce or verify them without API calls:
 
 ```bash
-python -m eval.summarize --split legacy gemma3:4b gemma3:12b
+python -m eval.split_dataset
 ```
 
-Summary comparisons require identical, unique question IDs. Default summary includes all available selected OpenAI models.
+Splitting uses seed 42, preserves category proportions and keeps the three previously reviewed smoke-test questions in development. The manifest records the source SHA-256 and split details. The command refuses to replace existing files if the generated content differs.
 
-## Dataset and scoring
+**The evaluation split is not a pristine holdout.** The original question pool had already been evaluated with Gemma and its aggregate results reviewed before splitting. Use development data for future routing and prompt changes, reserve evaluation data for later comparisons, and collect new unseen questions before making final generalization claims.
 
-The existing 200 questions contain 100 MMLU and 100 GSM8K problems. To rebuild (downloads datasets):
-
-```bash
-python -m eval.build_test_set
-```
-
-Scorer `strict-v2` distinguishes correct, incorrect and unparseable outputs. Choice answers must follow a clear answer form; ambiguous explanations are rejected. Numeric answers require `####` followed by a complete numeric value on that line, or an entirely numeric response. Decimal, scientific notation, grouped thousands and fractions are supported. There is no fallback to the last number in prose. Incomplete model responses are unsuccessful separately from parsing failures.
-
-## Development and evaluation separation
-
-`python -m eval.split_dataset` creates a frozen, seeded, stratified 120/80 split from the original source pool. Category proportions are preserved and the three reviewed smoke-test cases remain in development. The source file and historical results are preserved. The manifest records the source hash and split seed; rerunning refuses to overwrite a different split.
-
-**This is not a pristine holdout:** the original 200 questions already had Gemma results and aggregate analysis before splitting. Use dev for rule/prompt tuning; reserve test for later comparisons, but obtain new unseen questions for a final generalization claim. The split separates future workflows, not past exposure.
-
-Default runs and summaries use dev. Results live under `eval/results/dev/` and `eval/results/test/`, with dataset hash and scorer version recorded. Old root-level results are available with `--split legacy`; their saved scores are not rewritten. Do not compare legacy scores as though they used strict-v2.
-
-After freezing routing rules, evaluate the reserved portion explicitly:
+Once routing rules are frozen, run the reserved evaluation portion explicitly:
 
 ```bash
 python -m eval.run_model --all --split test
 python -m eval.summarize --split test
 ```
 
-Rebuilding the source dataset does not automatically replace frozen splits. If the source changes, create and document a new dataset/split version rather than overwriting the old one.
+This makes 240 requests. Avoid repeatedly tuning against these results.
 
-## Tests
+To download the source benchmarks and rebuild the original pool:
 
 ```bash
-python -m pytest -q
+python -m eval.build_test_set
 ```
 
-API tests are mocked and incur no API charges.
+Rebuilding the source does not update frozen splits automatically. A changed source requires a deliberately versioned dataset/split update.
 
-## Next milestone
+## Scoring
 
-Tighten scoring, separate development/holdout data, evaluate three baselines, then implement a rule-based router and compare quality, latency and estimated API cost. Gateway, caching, dashboard and Docker are later work.
+[`eval/scoring.py`](eval/scoring.py) implements `strict-v2`:
 
-## References
+- **Multiple choice:** accept a clear answer such as `C`, `**C**` or `The answer is C`. Reject ambiguous responses such as `B or C` and explanations that do not match the accepted answer form.
+- **Numbers:** accept one complete numeric value after a single `####` marker, or a response consisting entirely of a numeric value. Supported forms include decimals, grouped thousands, scientific notation and fractions.
+- **No last-number fallback:** a number merely mentioned in prose is not treated as the final answer.
 
-- https://developers.openai.com/api/docs/models/gpt-6-luna
-- https://developers.openai.com/api/docs/models/gpt-6-sol
-- https://developers.openai.com/api/docs/models/gpt-6-astra
-- https://developers.openai.com/api/reference/python/resources/responses/methods/create
+Parsed answers are marked `correct` or `incorrect`; answers that cannot be parsed are `unparseable`. A non-completed API response is recorded separately as `incomplete` and cannot count as correct. These unsuccessful cases remain in the accuracy denominator.
+
+Scoring measures these benchmark answer formats, not general conversational quality. Historical saved scores are preserved and are not automatically recalculated with the new scorer.
+
+## Results and comparison
+
+```text
+eval/results/
+├── dev/                 # Current development runs
+├── test/                # Reserved evaluation runs
+└── *.jsonl              # Historical Gemma and OpenAI smoke-test runs
+```
+
+Each new row records:
+
+- Question ID, requested model, returned model ID and raw answer.
+- Extracted answer, scoring outcome and scorer version.
+- Dataset split and the full split file's SHA-256.
+- Input, output, cached-input and reasoning-token counts.
+- End-to-end request duration, response ID and completion details.
+- Reasoning effort and maximum output-token setting.
+
+Cached input is a subset of input tokens; reasoning tokens are part of output tokens. Do not add either subset a second time when calculating totals.
+
+The summary reports accuracy, average request latency, token totals, unparseable/incomplete counts and pairwise answer agreement. Pairwise comparisons require matching dataset/scorer metadata and identical, unique question IDs. Use the same sampling and generation settings for comparable experiments.
+
+API cost estimation, latency percentiles and confidence intervals are not implemented yet. Token usage is retained for a future pricing calculation.
+
+Inspect older runs explicitly:
+
+```bash
+python -m eval.summarize --split legacy gemma3:4b gemma3:12b
+python -m eval.summarize --split legacy gpt-6-luna gpt-6-sol gpt-6-astra
+```
+
+These commands read saved results and make no API calls. Historical latency definitions and scorer versions may differ from current runs.
+
+### CLI options
+
+| Option | Behavior |
+| --- | --- |
+| `model_name` | Evaluate one selected model |
+| `--all` | Evaluate all three models; cannot be combined with `model_name` |
+| `--split dev\|test` | Select questions and result directory; defaults to `dev` |
+| `--limit N` | Use at most N questions per model |
+| `--step N` | Select every Nth question before applying the limit |
+| `--overwrite` | Replace existing result files for the selected models and split |
+
+## Project structure
+
+```text
+models/openai_client.py       # API client and shared model settings
+eval/question.py              # Question schema
+eval/build_test_set.py        # Benchmark download and source-pool builder
+eval/split_dataset.py         # Reproducible development/evaluation split
+eval/scoring.py               # Answer parsing and scoring
+eval/run_model.py             # Evaluation CLI and result records
+eval/summarize.py             # Offline summaries and pairwise comparisons
+eval/data/                    # Source pool, frozen splits and manifest
+eval/results/                 # Saved model outputs
+tests/                        # Offline tests
+```
+
+## Next milestones
+
+1. Run the three development baselines and inspect failures by category.
+2. Add a rule-based router using request information available before answering.
+3. Compare the router with each fixed-model baseline, including routing overhead.
+4. Add versioned API pricing estimates and a report of quality/latency/cost trade-offs.
+5. Freeze the strategy before reserved evaluation and obtain a new unseen holdout.
+
+A gateway, fallback, caching, dashboard and Docker packaging can follow once the routing experiment produces useful evidence.
+
+## Official references
+
+- [GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
+- [GPT-6 Sol](https://developers.openai.com/api/docs/models/gpt-6-sol)
+- [GPT-6 Astra](https://developers.openai.com/api/docs/models/gpt-6-astra)
+- [Responses API](https://developers.openai.com/api/reference/python/resources/responses/methods/create)
