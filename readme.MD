@@ -1,116 +1,111 @@
 # Model Router
 
-Send each question to the cheapest model that can answer it well.
+Evaluate OpenAI models on identical questions, then build a router balancing quality, latency and API cost.
 
-Most questions an LLM application receives are easy. Sending all of them to a large, expensive model wastes money; sending all of them to a small model hurts quality. Model Router looks at each incoming question and decides which model should handle it, then measures whether that decision actually paid off.
+## Status and models
 
-The core claim this project has to prove with numbers:
+Baseline evaluation is implemented; routing is not implemented yet. Ollama is no longer needed. Historical Gemma results are retained separately.
 
-> "Compared to always using the strong model, routing cut cost by **X%** while losing only **Y%** in quality."
+- `gpt-6-luna`: efficient baseline.
+- `gpt-6-sol`: middle tier, explicitly GPT-6 Sol (not GPT-6.1 Sol).
+- `gpt-6-astra`: high-capability baseline.
 
----
+All use Responses API, `reasoning.effort=low`, Standard/default service tier, and a 4096-token output budget including reasoning tokens. No temperature is sent. Incomplete outputs are recorded and counted as unsuccessful. Availability depends on your API account.
 
-## How it works
+## Setup
 
-```
-question ──▶ router ──┬──▶ small model  (free, fast, weaker)
-                      │
-                      └──▶ strong model (free, slower, stronger)
-                                │
-                                ▼
-                     answer + cost + latency log
-```
+From this repository root:
 
-**Free models only.** This project runs entirely on free models. Cost is therefore
-measured in two ways:
-
-- **Real cost:** latency and compute (and free-tier quota, if an API is used).
-- **Shadow cost:** what the same tokens would cost at a public paid API's list price.
-  This shows the savings the router would bring to a production system that does pay.
-
-1. A question comes in.
-2. The router decides: is this easy enough for the small model?
-3. The chosen model answers.
-4. Every decision is logged with its cost and latency, so it can be evaluated later.
-
-## How we measure it
-
-A router is only as good as the evidence behind it. Every version is evaluated on a fixed test set against three baselines:
-
-| Strategy | What it shows |
-|---|---|
-| Always small model | Lowest cost, quality floor |
-| Always strong model | Highest cost, quality ceiling |
-| **Router** | Where we land between the two |
-
-Metrics:
-
-- **Quality:** share of questions answered correctly, judged against reference answers (exact match where possible, LLM-as-judge otherwise).
-- **Cost:** shadow cost of answering the test set (tokens × public list price).
-- **Latency:** average response time.
-- **Routing accuracy:** how often the router sent a question to the model that actually needed it.
-
----
-
-## Roadmap
-
-One repository, growing version by version. Every version ends with something that works on its own and can be tagged (`git tag v0.1`).
-
-### v0.1 — Baseline and evaluation
-Two models, a test set of 100–200 mixed easy/hard questions, a rule-based router (length, keywords), and the cost/quality table above.
-
-**Done when:** the three-row comparison table exists and is filled with real numbers.
-
-### v0.2 — Smarter routing
-An embedding-based or small-classifier router, compared against the rule-based one on the same test set.
-
-**Done when:** the table has a fourth row, and we know with numbers whether the smarter router beats the simple one.
-
-### v0.3 — Gateway
-Expose the router as an OpenAI-compatible API, so any app can use it as if it were a single model. Add fallback (if one model fails, use the other) and response caching.
-
-**Done when:** an existing OpenAI client can point at the router and work unchanged.
-
-### v0.4 — Monitoring
-A dashboard showing which questions went where, what they cost and how long they took.
-
-**Done when:** routing decisions and costs are visible without reading logs.
-
-### v1.0 — Production
-Docker packaging, rate limiting, prompt-injection safeguards, deployment.
-
-**Done when:** `docker compose up` brings the whole system up.
-
----
-
-## Repository structure
-
-Folders are added only when their version starts.
-
-```
-model-router/
-├── models/      # v0.1  clients for each model
-├── eval/        # v0.1  test set + evaluation scripts
-├── routing/     # v0.1  rule-based router
-│                # v0.2  + embedding-based router
-├── gateway/     # v0.3  OpenAI-compatible API, fallback, cache
-├── dashboard/   # v0.4  monitoring
-└── docker/      # v1.0  packaging and deployment
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-## Stack
+A local `.env` is prepared. Add your real key locally:
 
-- **Python 3.11+**
-- **Small model:** [Ollama](https://ollama.com) running `llama3.2:3b` locally.
-- **Strong model:** free as well. Either a larger local model via Ollama, or a free-tier API (decided in v0.1).
+```dotenv
+OPENAI_API_KEY=your-key-here
+```
 
-## Status
+For a fresh clone, copy `.env.example` to `.env`. `.env` is ignored by Git; environment variables take precedence. Never put real credentials in `.env.example`.
 
-🚧 **v0.1 in progress.** Next step: connect to the local Ollama model from Python.
+## Run
 
-## Open decisions
+These commands make paid API calls. Start with three questions per model:
 
-- Which strong model: larger local model or free-tier API? (v0.1)
-- Which public API's price list is used for shadow cost? (v0.1)
-- Where does the test set come from: hand-written, public benchmark, or both? (v0.1)
-- How is quality judged for open-ended answers? (v0.1)
+```bash
+python -m eval.split_dataset
+python -m eval.run_model --all --split dev --limit 3
+python -m eval.summarize
+```
+
+Single model:
+
+```bash
+python -m eval.run_model gpt-6-luna --limit 10
+```
+
+Full development evaluation: 120 questions x 3 models = 360 requests:
+
+```bash
+python -m eval.run_model --all --split dev --overwrite
+```
+
+Existing files are protected unless `--overwrite` is explicit. `--step N` selects every Nth question; `--limit` applies afterward. On request failure the run stops, preserving already written rows. SDK retries are disabled to avoid hidden baseline retries.
+
+Results record input/output/cached/reasoning tokens, request latency, response ID, returned model, completion status, and generation settings. Cached input is part of total input; reasoning tokens are part of output tokens. Do not add them twice. API cost calculation is not implemented yet; usage is retained for later pricing. No paid model evaluation was run during migration.
+
+To inspect the old baseline:
+
+```bash
+python -m eval.summarize --split legacy gemma3:4b gemma3:12b
+```
+
+Summary comparisons require identical, unique question IDs. Default summary includes all available selected OpenAI models.
+
+## Dataset and scoring
+
+The existing 200 questions contain 100 MMLU and 100 GSM8K problems. To rebuild (downloads datasets):
+
+```bash
+python -m eval.build_test_set
+```
+
+Scorer `strict-v2` distinguishes correct, incorrect and unparseable outputs. Choice answers must follow a clear answer form; ambiguous explanations are rejected. Numeric answers require `####` followed by a complete numeric value on that line, or an entirely numeric response. Decimal, scientific notation, grouped thousands and fractions are supported. There is no fallback to the last number in prose. Incomplete model responses are unsuccessful separately from parsing failures.
+
+## Development and evaluation separation
+
+`python -m eval.split_dataset` creates a frozen, seeded, stratified 120/80 split from the original source pool. Category proportions are preserved and the three reviewed smoke-test cases remain in development. The source file and historical results are preserved. The manifest records the source hash and split seed; rerunning refuses to overwrite a different split.
+
+**This is not a pristine holdout:** the original 200 questions already had Gemma results and aggregate analysis before splitting. Use dev for rule/prompt tuning; reserve test for later comparisons, but obtain new unseen questions for a final generalization claim. The split separates future workflows, not past exposure.
+
+Default runs and summaries use dev. Results live under `eval/results/dev/` and `eval/results/test/`, with dataset hash and scorer version recorded. Old root-level results are available with `--split legacy`; their saved scores are not rewritten. Do not compare legacy scores as though they used strict-v2.
+
+After freezing routing rules, evaluate the reserved portion explicitly:
+
+```bash
+python -m eval.run_model --all --split test
+python -m eval.summarize --split test
+```
+
+Rebuilding the source dataset does not automatically replace frozen splits. If the source changes, create and document a new dataset/split version rather than overwriting the old one.
+
+## Tests
+
+```bash
+python -m pytest -q
+```
+
+API tests are mocked and incur no API charges.
+
+## Next milestone
+
+Tighten scoring, separate development/holdout data, evaluate three baselines, then implement a rule-based router and compare quality, latency and estimated API cost. Gateway, caching, dashboard and Docker are later work.
+
+## References
+
+- https://developers.openai.com/api/docs/models/gpt-6-luna
+- https://developers.openai.com/api/docs/models/gpt-6-sol
+- https://developers.openai.com/api/docs/models/gpt-6-astra
+- https://developers.openai.com/api/reference/python/resources/responses/methods/create

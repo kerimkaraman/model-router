@@ -1,0 +1,14 @@
+{
+  "version": "split-v1",
+  "seed": 42,
+  "source_sha256": "1e49b732fbd786ce229d6928cba0993e41ff60d9c8ffd8e55f4b00a3857748eb",
+  "dev_count": 120,
+  "test_count": 80,
+  "forced_dev_ids": [
+    "mmlu-elementary_mathematics-000",
+    "mmlu-elementary_mathematics-001",
+    "mmlu-elementary_mathematics-002"
+  ],
+  "evaluation_status": "Previously evaluated source pool; not a pristine holdout.",
+  "note": "Historical model outputs and aggregate scores existed before this split. Use new unseen questions for final generalization claims."
+}
