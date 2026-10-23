@@ -1,0 +1,23 @@
+{
+  "version": "choice-luna-sol-060-v1",
+  "selected_at": "2026-10-24",
+  "selection_split": "dev",
+  "evaluation_split": "test",
+  "escalation_threshold": 0.6,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6-sol"
+  ],
+  "judge_policy_hash": "3a460d0f28e8ba949c4a35841e125aa4c98f482879dbe81349dc7f91098fe8b0",
+  "judge_policy_version": "answer-review-v1",
+  "rule": "choice=escalate AND (1-P(accept))>=0.60; no confidence threshold",
+  "frozen_input_hashes": {
+    "eval/data/dev.jsonl": "a155064d9dc06821d424fb017b34692a3173da58d6e798ebfd513a8ab221ec05",
+    "eval/data/test.jsonl": "83479e9f8c0bf36663e42410143318bcbc55221fc356253047ab46efdb83e004",
+    "eval/results/decisions/luna-dev-choice.jsonl": "8c5e118794ce4779ae2587f18ff87f2e6ecdcdbb30b0849b408fb42e2107fa13",
+    "eval/pricing.json": "c09242d613323a85a2055c559325003f941e6322471e38436c16255248f68e52",
+    "eval/scoring.py": "2152e243e78fcca04b462364b3f4573cea6fb3cb3f7ee3d15b9500eba524de9f",
+    "eval/decisions_check.py": "8f5e7f8a81e73909a706c87720c4e60de163cd1734acc7427ee4c5984d9af6a5",
+    "eval/choice_cascade.py": "a000d02c96771d461dcdd0f2f3f38b7737d8b697ff7e2258e676e9612216597f"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "policy": "answer-review-v1",
+  "policy_hash": "3a460d0f28e8ba949c4a35841e125aa4c98f482879dbe81349dc7f91098fe8b0",
+  "mode": "choice",
+  "threshold": null,
+  "evaluated": 120,
+  "total": 120,
+  "counts": {
+    "accept_benchmark_correct": 101,
+    "accept_benchmark_unsuccessful": 2,
+    "escalate_benchmark_correct": 15,
+    "escalate_benchmark_unsuccessful": 2,
+    "refusal": 0
+  },
+  "input_tokens": 46403,
+  "estimated_decisions_cost_usd": "0.0046403"
+}

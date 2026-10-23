@@ -1,0 +1,183 @@
+{
+  "development_only": true,
+  "thresholds": [
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    0.95,
+    1.0
+  ],
+  "summaries": [
+    {
+      "strategy": "gpt-6-luna",
+      "correct": 116,
+      "questions": 120,
+      "generation_calls": 120,
+      "judge_calls": 0,
+      "estimated_cost_usd": "0.0067704",
+      "mean_latency_seconds": 2.18562
+    },
+    {
+      "strategy": "gpt-6-sol",
+      "correct": 115,
+      "questions": 120,
+      "generation_calls": 120,
+      "judge_calls": 0,
+      "estimated_cost_usd": "0.089088",
+      "mean_latency_seconds": 2.4928741666666667
+    },
+    {
+      "strategy": "Luna + Decisions choice \u2192 Sol",
+      "escalation_threshold": null,
+      "correct": 115,
+      "questions": 120,
+      "generation_calls": 137,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 17,
+      "estimated_cost_usd": "0.0263867",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 3.4968395917002844,
+      "repaired": 1,
+      "regressed": 2
+    },
+    {
+      "strategy": "Choice escalation probability >= 0.5",
+      "escalation_threshold": 0.5,
+      "correct": 115,
+      "questions": 120,
+      "generation_calls": 137,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 17,
+      "estimated_cost_usd": "0.0263867",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 3.4968395917002844,
+      "repaired": 1,
+      "regressed": 2
+    },
+    {
+      "strategy": "Choice escalation probability >= 0.6",
+      "escalation_threshold": 0.6,
+      "correct": 117,
+      "questions": 120,
+      "generation_calls": 131,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 11,
+      "estimated_cost_usd": "0.0210747",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 3.3698270917002846,
+      "repaired": 1,
+      "regressed": 0
+    },
+    {
+      "strategy": "Choice escalation probability >= 0.7",
+      "escalation_threshold": 0.7,
+      "correct": 116,
+      "questions": 120,
+      "generation_calls": 125,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 5,
+      "estimated_cost_usd": "0.0156487",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 2.5099120917002846,
+      "repaired": 0,
+      "regressed": 0
+    },
+    {
+      "strategy": "Choice escalation probability >= 0.8",
+      "escalation_threshold": 0.8,
+      "correct": 116,
+      "questions": 120,
+      "generation_calls": 124,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 4,
+      "estimated_cost_usd": "0.0154487",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 2.502235425033618,
+      "repaired": 0,
+      "regressed": 0
+    },
+    {
+      "strategy": "Choice escalation probability >= 0.9",
+      "escalation_threshold": 0.9,
+      "correct": 116,
+      "questions": 120,
+      "generation_calls": 122,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 2,
+      "estimated_cost_usd": "0.0137147",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 2.4696104250336175,
+      "repaired": 0,
+      "regressed": 0
+    },
+    {
+      "strategy": "Choice escalation probability >= 0.95",
+      "escalation_threshold": 0.95,
+      "correct": 116,
+      "questions": 120,
+      "generation_calls": 120,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 0,
+      "estimated_cost_usd": "0.0114107",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 2.437278758366951,
+      "repaired": 0,
+      "regressed": 0
+    },
+    {
+      "strategy": "Choice escalation probability >= 1.0",
+      "escalation_threshold": 1.0,
+      "correct": 116,
+      "questions": 120,
+      "generation_calls": 120,
+      "judge_calls": 120,
+      "luna_calls": 120,
+      "sol_calls": 0,
+      "estimated_cost_usd": "0.0114107",
+      "judge_cost_usd": "0.0046403",
+      "mean_latency_seconds": 2.437278758366951,
+      "repaired": 0,
+      "regressed": 0
+    }
+  ],
+  "provenance": {
+    "eval/data/dev.jsonl": "a155064d9dc06821d424fb017b34692a3173da58d6e798ebfd513a8ab221ec05",
+    "eval/results/dev/gpt-6-luna.jsonl": "5bbd473d7ceea63e6973c946d6cd5d914410a46484f489b0e665188ef03fd77e",
+    "eval/results/dev/gpt-6-sol.jsonl": "c7bd858f077d21c15c86869af2508c6eb82189a8a067c22d28bf7ec003aa77c1",
+    "eval/results/decisions/luna-dev-choice.jsonl": "8c5e118794ce4779ae2587f18ff87f2e6ecdcdbb30b0849b408fb42e2107fa13",
+    "eval/pricing.json": "c09242d613323a85a2055c559325003f941e6322471e38436c16255248f68e52"
+  },
+  "generation_pricing": {
+    "version": "2026-10-22-standard-short-context-model-pages",
+    "note": "USD per million tokens; explicit estimate snapshot, not invoice data. Model pages were used; pricing may change.",
+    "models": {
+      "gpt-6-luna": {
+        "input": "0.10",
+        "cached_input": "0.01",
+        "output": "0.50",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna"
+      },
+      "gpt-6-sol": {
+        "input": "2.00",
+        "cached_input": "0.20",
+        "output": "10.00",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-sol"
+      },
+      "gpt-6-astra": {
+        "input": "10.00",
+        "cached_input": "1.00",
+        "output": "50.00",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-astra"
+      }
+    }
+  }
+}
